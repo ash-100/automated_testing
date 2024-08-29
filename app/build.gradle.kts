@@ -11,7 +11,7 @@ android {
         applicationId = "com.example.automated_testing"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
+        versionCode = 2
         versionName = "v$versionCode"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
