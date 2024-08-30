@@ -1,0 +1,59 @@
+name: CI/CD Pipeline - Sign APK
+
+on:
+  push:
+    branches: [ "main", "feature/**" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:        
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+        
+      - name: Bundle 'release' with Gradle
+        run: ./gradlew assembleRelease 
+        
+      - name: Sign APK
+        id: sign_apk
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE_64 }}
+          alias: ${{ secrets.SIGNING_ALIAS }}
+          keyStorePassword: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.SIGNING_ALIAS_PASSWORD }}  
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Rename signed APK file
+        id: rename_apk
+        run: |
+          cd app/build/outputs/apk/release
+          for file in *unsigned-signed.apk; do
+            mv "${file}" "${file%-unsigned-signed.apk}.apk"
+            echo "final_name=${file%-unsigned-signed.apk}.apk" >> $GITHUB_OUTPUT
+          done
+          echo "Files after renaming:"
+          ls -la
+
+      - name: Build Status
+        run: echo "Build status report=${{ job.status }}."
+      
+      - name: Upload App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: "app/build/outputs/apk/release/${{steps.rename_apk.outputs.final_name}}"
+
